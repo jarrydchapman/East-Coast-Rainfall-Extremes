@@ -117,52 +117,35 @@ saveRDS(hpprob_plot, "hp90_prob_plot.rds")
 
 
 # Harmonic Plot
-summer_plot <- mapplot(ec, coords, coords$summer) +
-  scale_fill_continuous_divergingx(palette = 'RdBu', mid = 0.325,
-                                   limits = c(min(coords$summer, coords$autumn, coords$winter, coords$spring),
-                                              max(coords$summer, coords$autumn, coords$winter, coords$spring))) +
-  theme(axis.text = element_blank(),
-        axis.title = element_blank(),
-        axis.ticks = element_blank()) +
-  labs(fill = expression("Intensity" ~ (lambda)),
-       title = "DJF")
-summer_plot
 
-autumn_plot <- mapplot(ec, coords, coords$autumn) +
-  scale_fill_continuous_divergingx(palette = 'RdBu', mid = 0.325,
-                                   limits = c(min(coords$summer, coords$autumn, coords$winter, coords$spring),
-                                              max(coords$summer, coords$autumn, coords$winter, coords$spring))) +
-  theme(axis.text = element_blank(),
-        axis.title = element_blank(),
-        axis.ticks = element_blank()) +
-  labs(fill = expression("Intensity" ~ (lambda)),
-       title = "MAM")
-autumn_plot
+## The idea is to put all the variables we want to facet by into long form
+## and keep the rest as identifiers. That means taking the seasons as the things
+## to make long, and keeping the boxes as identifiers.
+coords_long <- coords %>%
+  select(
+    summer, autumn, winter, spring,
+    xmin, xmax, ymin, ymax
+  ) %>%
+  pivot_longer(!c(xmin, xmax, ymin, ymax), names_to = "season") %>%
+  ## Convenience to make the seasons look nice
+  mutate(season = str_to_sentence(season)) %>%
+  ## Default is alphabetical ordering
+  mutate(season = factor(season, levels=c("Summer", "Autumn", "Winter", "Spring")))
 
-winter_plot <- mapplot(ec, coords, coords$winter) +
-  scale_fill_continuous_divergingx(palette = 'RdBu', mid = 0.325,
-                                    limits = c(min(coords$summer, coords$autumn, coords$winter, coords$spring),
-                                               max(coords$summer, coords$autumn, coords$winter, coords$spring))) +
-  theme(axis.text = element_blank(),
-        axis.title = element_blank(),
-        axis.ticks = element_blank()) +
-  labs(fill = expression("Intensity" ~ (lambda)),
-       title = "JJA")
-winter_plot
-
-spring_plot <- mapplot(ec, coords, coords$spring) +
-  scale_fill_continuous_divergingx(palette = 'RdBu', mid = 0.325,
-                                   limits = c(min(coords$summer, coords$autumn, coords$winter, coords$spring),
-                                              max(coords$summer, coords$autumn, coords$winter, coords$spring))) +
-  theme(axis.text = element_blank(),
-        axis.title = element_blank(),
-        axis.ticks = element_blank()) +
-  labs(fill = expression("Intensity" ~ (lambda)),
-       title = "SON")
-spring_plot
-
-seasonal_plot <- ggarrange(summer_plot, autumn_plot, winter_plot, spring_plot, nrow = 2, ncol = 2,
-                           common.legend = TRUE, legend = "bottom")
+seasonal_plot <- ggplot(ec) +
+  geom_rect(aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = value), data = coords_long) +
+  geom_sf(alpha = 0.01, colour="black") +
+  scale_x_continuous(limits = c(150.5, 153.75), breaks = seq(151, 153, 1)) +
+  scale_y_continuous(limits = c(-34.5, -24.75), breaks = seq(-34, -24, 2)) +
+  labs(
+    x = "Longitude",
+    y = "Latitude",
+    colour = "City/Town",
+    fill = expression("Intensity"~(lambda))
+  ) +
+  facet_wrap(~season, nrow = 1) +
+  scale_fill_continuous_divergingx(palette = 'RdBu', mid = 0.325) +
+  theme(panel.background = element_rect(fill = "white", colour = "grey50"))
 
 seasonal_plot
 
@@ -179,37 +162,34 @@ doy_plot <- ggplot(harm_doy, aes(x = doy, y = intensity)) +
 doy_plot
 
 
-# ENSO
-soi_plot <- mapplot(ec, coords, coords$soi_95) +
-  scale_fill_continuous_divergingx(palette = 'RdBu', mid = 0,
-                                   limits = c(-0.53, 0.45)) +
-  labs(fill = expression("%" * Delta ~ lambda),
-       title = "SOI")
-soi_plot         
+coords_long <- coords %>%
+  select(
+    xmin, xmax, ymin, ymax,
+    soi_95, dmi_95, anom_95
+  ) %>%
+  pivot_longer(!c(xmin, xmax, ymin, ymax)) %>%
+  mutate(name = factor(name, levels = c("soi_95", "dmi_95", "anom_95"), labels = c("SOI", "DMI", "Temperature Anomaly")))
 
-dmi_plot <- mapplot(ec, coords, coords$dmi_95) +
-  scale_fill_continuous_divergingx(palette = 'RdBu', mid = 0,
-                                   limits = c(-0.53, 0.45)) +
-  labs(fill = expression("%" * Delta ~ lambda),
-       title = "DMI")
-dmi_plot  
-
-anom_plot <- mapplot(ec, coords, coords$anom_95) +
-  scale_fill_continuous_divergingx(palette = 'RdBu', mid = 0,
-                                   limits = c(-0.53, 0.45)) +
-  labs(fill = expression("%" * Delta ~ lambda),
-       title = "Temperature Anomaly")
-anom_plot
-
-
-lt_plot95 <- ggarrange(soi_plot, dmi_plot, anom_plot, ncol = 3,
-                           common.legend = TRUE, legend = "bottom")
+lt_plot95 <- ggplot(ec) +
+  geom_rect(aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = value), data = coords_long) +
+  geom_sf(alpha = 0.01, colour="black") +
+  scale_x_continuous(limits = c(150.5, 153.75), breaks = seq(151, 153, 1)) +
+  scale_y_continuous(limits = c(-34.5, -24.75), breaks = seq(-34, -24, 2)) +
+  labs(
+    x = "Longitude",
+    y = "Latitude",
+    colour = "City/Town",
+    fill = expression("%" * Delta ~ lambda)
+  ) +
+  facet_wrap(~name, nrow = 1) +
+  scale_fill_continuous_divergingx(palette = 'RdBu', mid = 0) +
+  theme(panel.background = element_rect(fill = "white", colour = "grey50"))
 
 lt_plot95
-lt_plot99
+
 
 saveRDS(lt_plot95, "lt_plot95.rds")
-saveRDS(lt_plot99, "lt_plot99.rds")
+#saveRDS(lt_plot99, "lt_plot99.rds")
 
 ## ST
 mslp_plot <- mapplot(ec, coords, coords$mslp_99) +
